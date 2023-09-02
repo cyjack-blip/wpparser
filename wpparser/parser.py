@@ -126,7 +126,7 @@ def parse(path):
 
 def _parse_blog(element):
     """
-    Parse and return genral blog data (title, tagline etc).
+    Parse and return general blog data (title, tagline etc).
     """
 
     title = element.find("./title").text
@@ -218,7 +218,7 @@ def _build_category_tree(slug, reference=None, items=None):
 
 def _parse_tags(element):
     """
-    Retrieves and parses tags into a array/dict.
+    Retrieves and parses tags into an array/dict.
 
     Example:
 
@@ -286,32 +286,13 @@ def _parse_posts(element):
 
             item_list.append(category_item.attrib["nicename"])
 
-        post = {
-            "title": title,
-            "link": link,
-            "pub_date": pub_date,
-            "creator": creator,
-            "guid": guid,
-            "description": description,
-            "content": content,
-            "excerpt": excerpt,
-            "post_id": post_id,
-            "post_date": post_date,
-            "post_date_gmt": post_date_gmt,
-            "status": status,
-            "post_parent": post_parent,
-            "menu_order": menu_order,
-            "post_type": post_type,
-            "post_name": post_name,
-            "categories": categories,
-            "is_sticky": is_sticky,
-            "ping_status": ping_status,
-            "post_password": post_password,
-            "tags": tags,
-        }
+        post = {"title": title, "link": link, "pub_date": pub_date, "creator": creator, "guid": guid,
+                "description": description, "content": content, "excerpt": excerpt, "post_id": post_id,
+                "post_date": post_date, "post_date_gmt": post_date_gmt, "status": status, "post_parent": post_parent,
+                "menu_order": menu_order, "post_type": post_type, "post_name": post_name, "categories": categories,
+                "is_sticky": is_sticky, "ping_status": ping_status, "post_password": post_password, "tags": tags,
+                "postmeta": _parse_postmeta(item), "comments": _parse_comments(item)}
 
-        post["postmeta"] = _parse_postmeta(item)
-        post["comments"] = _parse_comments(item)
         posts.append(post)
 
     return posts
@@ -321,9 +302,12 @@ def _parse_postmeta(element):
     import phpserialize
 
     """
-    Retrive post metadata as a dictionary
+    Retrieve post metadata as a dictionary
     """
-
+    serialized_meta = {
+        "_wp_attachment_metadata": "attachment_metadata",
+        "um_content_restriction": "um_content_restriction"
+    }
     metadata = {}
     fields = element.findall("./{%s}postmeta" % WP_NAMESPACE)
 
@@ -331,18 +315,17 @@ def _parse_postmeta(element):
         key = field.find("./{%s}meta_key" % WP_NAMESPACE).text
         value = field.find("./{%s}meta_value" % WP_NAMESPACE).text
 
-        if key == "_wp_attachment_metadata":
+        if key in serialized_meta:
             stream = StringIO(value.encode())
             try:
                 data = phpserialize.load(stream)
-                metadata["attachment_metadata"] = data
+                metadata[serialized_meta[key]] = {k.decode('utf-8'): v for k, v in data.items()}
             except ValueError as e:
                 pass
             except Exception as e:
                 raise e
-
-        if key == "_wp_attached_file":
-            metadata["attached_file"] = value
+        else:
+            metadata[key] = value
 
     return metadata
 
